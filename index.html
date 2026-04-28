@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LNA Tester</title>
+  <style>
+    body { font-family: system-ui; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    button { padding: .5rem 1rem; margin: .25rem; cursor: pointer; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 6px; white-space: pre-wrap; }
+    .ok { color: #0a7d28; }
+    .err { color: #b00020; }
+  </style>
+</head>
+<body>
+  <h1>Local Network Access tester</h1>
+  <p>This page is served from <code id="origin"></code> (public HTTPS).
+     Buttons below try to fetch from your local machine.</p>
+
+  <label>Target URL:
+    <input id="url" size="40" value="http://localhost:8080/api">
+  </label>
+  <p>
+    <button data-method="GET">GET</button>
+    <button data-method="POST">POST (with body)</button>
+    <button data-method="OPTIONS">OPTIONS (manual preflight peek)</button>
+  </p>
+
+  <h3>Result</h3>
+  <pre id="out">(idle)</pre>
+
+  <script>
+    document.getElementById('origin').textContent = location.origin;
+
+    async function run(method) {
+      const url = document.getElementById('url').value;
+      const out = document.getElementById('out');
+      out.className = '';
+      out.textContent = `→ ${method} ${url}\n(waiting...)`;
+      const t0 = performance.now();
+      try {
+        const init = { method, mode: 'cors' };
+        if (method === 'POST') {
+          init.headers = { 'Content-Type': 'application/json' };
+          init.body = JSON.stringify({ hello: 'from github pages' });
+        }
+        const res = await fetch(url, init);
+        const text = await res.text();
+        const dt = (performance.now() - t0).toFixed(0);
+        out.className = 'ok';
+        out.textContent =
+          `OK ${res.status} (${dt}ms)\n` +
+          `Response headers:\n` +
+          [...res.headers].map(([k, v]) => `  ${k}: ${v}`).join('\n') +
+          `\n\nBody:\n${text}`;
+      } catch (e) {
+        const dt = (performance.now() - t0).toFixed(0);
+        out.className = 'err';
+        out.textContent =
+          `BLOCKED / FAILED after ${dt}ms\n` +
+          `${e.name}: ${e.message}\n\n` +
+          `Open DevTools → Network and look for a failed preflight,\n` +
+          `and DevTools → Issues for the LNA explanation.`;
+      }
+    }
+
+    for (const b of document.querySelectorAll('button[data-method]')) {
+      b.onclick = () => run(b.dataset.method);
+    }
+  </script>
+</body>
+</html>
